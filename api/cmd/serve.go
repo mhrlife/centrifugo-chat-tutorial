@@ -27,6 +27,8 @@ var serveCmd = &cobra.Command{
 			return c.String(200, "ok")
 		})
 
+		e.Logger.Errorf("url prefix is %s", urlPrefix)
+
 		e.Logger.Error(e.Start(":8080"))
 	},
 }
