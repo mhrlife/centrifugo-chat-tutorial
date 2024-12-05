@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/cobra"
@@ -12,12 +11,17 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the server",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Mysql DSN", os.Getenv("MYSQL_DSN"))
+		urlPrefix := os.Getenv("URL_PREFIX")
 
 		e := echo.New()
 
 		e.Use(middleware.Logger())
 		e.Use(middleware.Recover())
+
+		e.Pre(middleware.Rewrite(map[string]string{
+			urlPrefix + "/*": "/$1",
+			urlPrefix:        "/",
+		}))
 
 		e.GET("/ok", func(c echo.Context) error {
 			return c.String(200, "ok")
