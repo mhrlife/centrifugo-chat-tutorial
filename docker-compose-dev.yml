@@ -1,0 +1,23 @@
+services:
+  centrifugal:
+    image: centrifugo/centrifugo:v5.4
+    network_mode: host
+    expose:
+      - 8000
+    volumes:
+      - ./charts/centrifugo.json:/etc/centrifugo/config.json
+    command: centrifugo --config /etc/centrifugo/config.json
+
+  mariadb:
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: chat
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    network_mode: host
+    volumes:
+      - chat_mariadb_data:/var/lib/mysql
+
+volumes:
+  chat_mariadb_data:

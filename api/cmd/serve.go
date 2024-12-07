@@ -1,35 +1,52 @@
 package cmd
 
 import (
+	"context"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/mhrlife/centrifugo-chat-tutorial/config"
+	"github.com/mhrlife/centrifugo-chat-tutorial/internal/endpoint"
+	"github.com/mhrlife/centrifugo-chat-tutorial/internal/ent"
+	"github.com/mhrlife/centrifugo-chat-tutorial/internal/service"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the server",
 	Run: func(cmd *cobra.Command, args []string) {
-		urlPrefix := os.Getenv("URL_PREFIX")
+		cfg, err := config.New()
+		if err != nil {
+			logrus.WithError(err).Fatal("failed to load config")
+		}
 
-		e := echo.New()
+		logrus.Info("config loaded")
 
-		e.Use(middleware.Logger())
-		e.Use(middleware.Recover())
+		client, err := ent.Open("mysql", cfg.Database.DSN)
+		if err != nil {
+			logrus.WithError(err).Fatal("failed opening connection to mysql")
+		}
 
-		e.Pre(middleware.Rewrite(map[string]string{
-			urlPrefix + "/*": "/$1",
-			urlPrefix:        "/",
-		}))
+		logrus.Info("mysql connection established")
 
-		e.GET("/ok", func(c echo.Context) error {
-			return c.String(200, "ok")
-		})
+		if err := client.Schema.Create(context.Background()); err != nil {
+			logrus.WithError(err).Fatal("failed creating schema resources")
+		}
 
-		e.Logger.Errorf("url prefix is %s", urlPrefix)
+		logrus.Info("schema created")
 
-		e.Logger.Error(e.Start(":8080"))
+		svc := service.NewService(client, cfg)
+		defer svc.Close()
+
+		echoServer := echo.New()
+
+		echoServer.Use(middleware.Recover())
+		echoServer.Use(middleware.Logger())
+
+		endpointManager := endpoint.NewEndpoint(cfg, echoServer, svc)
+		endpointManager.Start()
 	},
 }
 
